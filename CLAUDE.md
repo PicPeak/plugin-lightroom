@@ -50,8 +50,17 @@ Base path: `/api/v1`. Token must have `write` + `admin` scopes.
 ### Supporting Modules
 
 - **`MetadataTask.lua`** / **`MetadataProvider.lua`** — Store `picpeakPhotoId`, `picpeakEventId` and `picpeakSourceFilename` on photos via plugin metadata (schemaVersion 2). **`picpeakPhotoId` is load-bearing**: it is what lets a renamed render find its way back to the right PicPeak photo, so never clear it on export.
-- **`PicPeakMenuItem.lua`** / **`PicPeakHub.lua`** — the plugin's SINGLE entry point (Library > Plug-in Extras > PicPeak) and the hub that dispatches to everything else. Lightroom has no top-level-menu or panel API, so one item + one hub is the most reachable shape, and it lets one macOS App Shortcut cover the whole plugin. The hub dispatches on `presentModalDialog`'s return value and reopens afterwards — never nest modal dialogs.
-- **`ConnectionDialog.lua`** — the connection controls as a standalone modal, sharing `SharedDialogSections.getConnectionRows` with the Export dialog and Plug-in Manager sections.
+- **`PicPeakMenuItem.lua`** / **`PicPeakOverview.lua`** — **PicPeak Overview** in Library > Plug-in Extras, and the landing page it opens: connected server, account, last RAW folder, a server picker when more than one is known, and the actions.
+- **`PicPeakImportMenuItem.lua`** — **PicPeak Importer**, the second menu entry; opens the importer directly, skipping the overview.
+- **`ServerStore.lua`** — the known-server list, JSON-encoded in prefs. The ACTIVE server stays in the scalar `prefs.url` so a corrupt list can never disconnect an install. Tokens are not here — `TokenStore` keys the keychain by server URL, so switching server switches credential.
+
+  **No keyboard shortcut is possible.** Lightroom has no API to bind one, and a macOS App Shortcut cannot reach these items: Lightroom builds the Plug-in Extras entries lazily, after macOS has applied key equivalents at launch, so the binding lands on the plugin-name header (which is disabled) and never on the item. Verified against a real install — do not re-litigate this without testing it in the menu.
+
+  The menu title must therefore also differ from `LrPluginName`, or the submenu shows two identical rows.
+
+  Dispatch between the importer and the connection screen goes through `presentModalDialog`'s return value — **never nest modal dialogs**.
+- **`ConnectionDialog.lua`** — the connection controls as a standalone modal, sharing `SharedDialogSections.getConnectionRows` with the Export dialog and Plug-in Manager sections. Reached from the importer's "Connection…" button, which returns rather than opening it inline.
+- **`TokenStore.lua`** — the API token lives in the OS keychain (`LrPasswords`), NOT `LrPrefs`. Migrates a legacy plaintext token on first read. Keyed by server URL.
 - **`ImportSelectionsDialog.lua`** / **`ImportSelectionsTask.lua`** — the round-trip import. The task resolves PicPeak photos to local files by `source_filename` stem, then optionally by trailing digit run.
 - **`ColorLabelMerge.lua`** — merge rules. `COLOR_PRIORITY` mirrors `COLOR_LABEL_PRIORITY` in the picpeak backend (`backend/src/constants/colorLabels.js`) — update both together.
 - **`LoginDialog.lua`** — credentials-to-token exchange, including the TOTP step.

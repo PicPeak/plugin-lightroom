@@ -79,8 +79,36 @@ local function promptForMfa(f, url, mfaToken)
     return PicPeakAPI.submitMfa(url, mfaToken, result.code)
 end
 
+--[[
+    sanityCheckAndFixURL accepts `^https?://`, so the password can be sent over
+    a cleartext connection. That is legitimate for localhost and for a server
+    reached over a VPN or SSH tunnel, so it is a warning rather than a refusal
+    — but the user is about to type an administrator password, and they should
+    know before they do, not after.
+
+    Loopback is exempt: it never leaves the machine, and warning about it would
+    train people to ignore the warning that matters.
+]]
+local function isInsecureUrl(url)
+    if type(url) ~= "string" or url == "" then
+        return false
+    end
+    if url:match("^https://") then
+        return false
+    end
+    local host = url:match("^https?://([^:/]+)")
+    if host then
+        host = host:lower()
+        if host == "localhost" or host == "127.0.0.1" or host == "::1"
+            or host:match("%.localhost$") then
+            return false
+        end
+    end
+    return true
+end
+
 -- Collect an email + password once. Returns nil when the user cancels.
-local function promptForCredentials(f, title, blurb, actionVerb)
+local function promptForCredentials(f, title, blurb, actionVerb, url)
     local creds = nil
     LrFunctionContext.callWithContext("picpeakCredentialsPrompt", function(context)
         local props = LrBinding.makePropertyTable(context)
@@ -102,6 +130,16 @@ local function promptForCredentials(f, title, blurb, actionVerb)
             f:static_text({
                 title = "Your password is used once and is never stored.",
                 font = "<system/small>",
+            }),
+            f:static_text({
+                title = "⚠  This server is not using https — your password would be "
+                    .. "sent unencrypted.\nOnly continue on a network you trust "
+                    .. "(a VPN or SSH tunnel), or switch the URL to https://.",
+                font = "<system/small>",
+                text_color = LrColor(0.7, 0.25, 0),
+                visible = isInsecureUrl(url),
+                fill_horizontal = 1,
+                height_in_lines = 2,
             }),
         })
 
@@ -131,7 +169,8 @@ function LoginDialog.signIn(url)
         f,
         "Sign in to PicPeak",
         "Sign in with your PicPeak administrator account.",
-        "Sign in"
+        "Sign in",
+        url
     )
     if creds == nil then
         return { ok = false, canceled = true }
@@ -176,7 +215,8 @@ function LoginDialog.signOutAndRevoke(url, tokenId)
         f,
         "Revoke PicPeak token",
         "Confirm your password to revoke this token on the server.",
-        "Revoke"
+        "Revoke",
+        url
     )
     if creds == nil then
         return { ok = false, canceled = true }

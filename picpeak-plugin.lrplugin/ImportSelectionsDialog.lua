@@ -11,6 +11,7 @@
 require("PicPeakAPI")
 require("ColorLabelMerge")
 require("ImportSelectionsTask")
+require("TokenStore")
 
 ImportSelectionsDialog = {}
 
@@ -158,29 +159,36 @@ local function summaryMessage(summary)
     return table.concat(lines, "\n")
 end
 
+--[[
+    Show the importer.
+
+    @return "connection" when the user asked for the connection screen, so the
+            caller can show it and call back in. Returned rather than opened
+            here: nesting modal dialogs is where Lightroom plugins deadlock, so
+            this window closes first and the caller reopens it afterwards.
+]]
 function ImportSelectionsDialog.show()
     local prefs = _G.prefs
-    if util.nilOrEmpty(prefs.url) or util.nilOrEmpty(prefs.apiToken) then
-        LrDialogs.message(
-            "PicPeak is not connected yet",
-            "Open File > Plug-in Manager > PicPeak and sign in first.",
-            "info"
-        )
-        return
+    local apiToken = TokenStore.get(prefs.url)
+    if util.nilOrEmpty(prefs.url) or util.nilOrEmpty(apiToken) then
+        -- Send them straight to the fix rather than describing where it lives.
+        return "connection"
     end
 
-    local api = PicPeakAPI:new(prefs.url, prefs.apiToken)
+    local api = PicPeakAPI:new(prefs.url, apiToken)
     local events = api:getEvents(100)
     if not events or #events == 0 then
-        LrDialogs.message(
+        local choice = LrDialogs.confirm(
             "No events found",
-            "PicPeak returned no galleries for this account. Check the connection "
-                .. "in the Plug-in Manager.",
-            "warning"
+            "PicPeak returned no galleries for this account — the server may be "
+                .. "unreachable, or the token may have been revoked.",
+            "Check connection",
+            "Cancel"
         )
-        return
+        return choice == "ok" and "connection" or nil
     end
 
+    local outcome = nil
     LrFunctionContext.callWithContext("picpeakImportSelections", function(context)
         local f = LrView.osFactory()
         local props = LrBinding.makePropertyTable(context)
@@ -216,9 +224,21 @@ function ImportSelectionsDialog.show()
             }))
         end
 
+        local signedIn = util.nilOrEmpty(prefs.signedInAs)
+            and "Connected with a manually entered API token."
+            or ("Signed in as " .. tostring(prefs.signedInAs))
+
         local contents = f:column({
             spacing = f:control_spacing(),
             bind_to_object = props,
+
+            f:static_text({
+                title = tostring(prefs.url) .. "  —  " .. signedIn,
+                font = "<system/small>",
+                fill_horizontal = 1,
+                truncation = "middle",
+            }),
+            f:separator({ fill_horizontal = 1 }),
 
             f:row({
                 f:static_text({ title = "Event:", alignment = "right", width = lw }),
@@ -335,10 +355,15 @@ function ImportSelectionsDialog.show()
         })
 
         local result = LrDialogs.presentModalDialog({
+            otherVerb = "Connection…",
             title = "Import selections from PicPeak",
             contents = contents,
             actionVerb = "Import",
         })
+        if result == "other" then
+            outcome = "connection"
+            return
+        end
         if result ~= "ok" then
             return
         end
@@ -401,6 +426,7 @@ function ImportSelectionsDialog.show()
             end
         end)
     end)
+    return outcome
 end
 
 return ImportSelectionsDialog

@@ -29,14 +29,25 @@ return {
     -- all of them — which also means one OS-level App Shortcut on this title
     -- reaches the entire plugin.
     --
-    -- No trailing ellipsis: macOS App Shortcuts matches the menu title
-    -- CHARACTER FOR CHARACTER, and "…" is a single U+2026 the user would have
-    -- to paste rather than type. Lightroom gives plugins no way to bind a
-    -- shortcut themselves, so that route has to stay easy.
+    -- Two entries: the overview is the landing page, the importer is the
+    -- shortcut past it for the repeat import — which is most of them.
+    --
+    -- Neither title equals LrPluginName. Lightroom draws the plugin name as a
+    -- DISABLED section header above these items, so a matching title puts two
+    -- identical rows in the submenu — and macOS App Shortcuts, which binds to
+    -- the first title match, would attach to the header. That is moot in
+    -- practice (no App Shortcut can reach these items at all: Lightroom builds
+    -- them lazily when the menu opens, after key equivalents are applied at
+    -- launch, verified against a real install) but a submenu that reads
+    -- "PicPeak / PicPeak / PicPeak Importer" is worse for no gain.
     LrLibraryMenuItems = {
         {
-            title = "PicPeak",
+            title = "PicPeak Overview",
             file = "PicPeakMenuItem.lua",
+        },
+        {
+            title = "PicPeak Importer",
+            file = "PicPeakImportMenuItem.lua",
         },
     },
 

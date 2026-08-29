@@ -1,5 +1,7 @@
 require("PicPeakAPI")
 require("LoginDialog")
+require("TokenStore")
+require("ServerStore")
 
 SharedDialogSections = {}
 
@@ -28,13 +30,14 @@ function SharedDialogSections.syncConnectionPrefs(propertyTable)
         propertyTable.url = _G.prefs.url or ""
     end
     if util.nilOrEmpty(propertyTable.apiToken) then
-        propertyTable.apiToken = _G.prefs.apiToken or ""
+        -- Keychain, not prefs. Migrates a legacy plaintext token on first read.
+        propertyTable.apiToken = TokenStore.get(propertyTable.url or _G.prefs.url) or ""
     end
     propertyTable:addObserver("url", function(props)
         _G.prefs.url = props.url or ""
     end)
     propertyTable:addObserver("apiToken", function(props)
-        _G.prefs.apiToken = props.apiToken or ""
+        TokenStore.set(props.url or _G.prefs.url, props.apiToken or "")
     end)
 end
 
@@ -151,7 +154,9 @@ function SharedDialogSections.getServerConnectionSection(f, propertyTable)
                             propertyTable.signedInAs = result.username
                             propertyTable.tokenExpiresAt = result.expiresAt or ""
                             _G.prefs.url = propertyTable.url or ""
-                            _G.prefs.apiToken = result.token
+                            TokenStore.set(propertyTable.url, result.token)
+                            -- Remember it so the overview can offer it later.
+                            ServerStore.add(propertyTable.url)
                             _G.prefs.apiTokenId = result.tokenId
                             _G.prefs.signedInAs = result.username
                             _G.prefs.tokenExpiresAt = result.expiresAt or ""
@@ -218,7 +223,7 @@ function SharedDialogSections.getServerConnectionSection(f, propertyTable)
                         propertyTable.apiToken = ""
                         propertyTable.signedInAs = ""
                         propertyTable.tokenExpiresAt = ""
-                        _G.prefs.apiToken = ""
+                        TokenStore.clear(propertyTable.url)
                         _G.prefs.apiTokenId = nil
                         _G.prefs.signedInAs = ""
                         _G.prefs.tokenExpiresAt = ""
