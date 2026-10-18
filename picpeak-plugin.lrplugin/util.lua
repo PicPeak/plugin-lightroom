@@ -196,6 +196,35 @@ function util.extensionOf(filename)
     return ext and ext:lower() or nil
 end
 
+--[[
+    The name a render is uploaded under. A photo keeps its catalog name: the
+    round-trip matches on it. A video takes the rendered file's extension,
+    because the export can transcode an .MOV to an H.264 .mp4 and PicPeak names
+    the stored file from what it is told. The stem is kept either way.
+]]
+function util.uploadNameFor(photo, renderedPath)
+    local fileName = photo:getFormattedMetadata("fileName")
+    if not photo:getRawMetadata("isVideo") then
+        return fileName
+    end
+    local stem, ext = util.stemOf(fileName), util.extensionOf(renderedPath)
+    if not stem or not ext then
+        return fileName
+    end
+    return stem .. "." .. ext
+end
+
+-- A refused video most often means the server cannot take one yet; say what
+-- to change instead of leaving only the HTTP status.
+function util.uploadFailureReason(photo, errReason)
+    local reason = errReason or "Upload failed"
+    if photo:getRawMetadata("isVideo") then
+        reason = reason .. "; videos need a PicPeak version that accepts them over the API,"
+            .. " with the video file type enabled in PicPeak's upload settings"
+    end
+    return reason
+end
+
 function util.isSupportedPhotoExtension(filename)
     local ext = util.extensionOf(filename)
     if not ext then

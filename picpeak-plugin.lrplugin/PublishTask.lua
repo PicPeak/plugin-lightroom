@@ -93,7 +93,7 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
 
         if success then
             local photo = rendition.photo
-            local fileName = photo:getFormattedMetadata("fileName")
+            local fileName = util.uploadNameFor(photo, pathOrMessage)
 
             -- Detect re-publish: Lightroom passes an existing remote ID for photos
             -- that were previously published and have since been modified.
@@ -115,7 +115,7 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
 
             if not photoId then
                 log:error("PublishTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
-                table.insert(failures, fileName .. " (" .. (errReason or "Upload failed") .. ")")
+                table.insert(failures, fileName .. " (" .. util.uploadFailureReason(photo, errReason) .. ")")
             else
                 local photoIdStr = tostring(photoId)
                 MetadataTask.setPhotoId(photo, photoIdStr)
