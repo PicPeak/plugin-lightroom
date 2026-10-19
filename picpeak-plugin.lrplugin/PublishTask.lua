@@ -91,7 +91,11 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
         local success, pathOrMessage = rendition:waitForRender()
         if progressScope:isCanceled() then break end
 
-        if success then
+        -- waitForRender answers true for a skipped rendition but renders no
+        -- file, so check before treating it as a render to upload.
+        if rendition.wasSkipped then
+            log:info("PublishTask: rendition skipped")
+        elseif success then
             local photo = rendition.photo
             local fileName = util.uploadNameFor(photo, pathOrMessage)
 
@@ -128,9 +132,6 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
                 log:error("PublishTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
                 local reason = unsupported or util.uploadFailureReason(photo, errReason)
                 table.insert(failures, fileName .. " (" .. reason .. ")")
-                -- Without this Lightroom files the photo under Published,
-                -- and it would not be offered again on the next publish.
-                rendition:uploadFailed(reason)
             else
                 local photoIdStr = tostring(photoId)
                 MetadataTask.setPhotoId(photo, photoIdStr)

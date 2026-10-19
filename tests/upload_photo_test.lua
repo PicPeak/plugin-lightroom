@@ -94,20 +94,17 @@ end
 
 -- Render failures ----------------------------------------------------------------
 
-local function rendition(fileName, skipped)
+local function rendition(fileName)
     return {
-        wasSkipped = skipped,
         photo = { getFormattedMetadata = function(_, key) if key == "fileName" then return fileName end end },
     }
 end
 
 do
     local list = {}
-    util.recordRenderFailure(list, rendition("CLIP_1.MOV", false), "codec not supported")
+    util.recordRenderFailure(list, rendition("CLIP_1.MOV"), "codec not supported")
     check("a failed render is listed with its reason",
         #list == 1 and list[1] == "CLIP_1.MOV (render failed: codec not supported)", list[1])
-    util.recordRenderFailure(list, rendition("IMG_2.jpg", true), "skipped")
-    check("a skipped rendition is not a failure", #list == 1)
 end
 
 print(string.format("%d passed, %d failed", passes, failures))
