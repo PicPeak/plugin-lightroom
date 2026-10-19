@@ -32,7 +32,7 @@ Base path: `/api/v1`. Token must have `write` + `admin` scopes.
 | GET | `/events?limit=100` | List events (paginated, max 100) |
 | POST | `/events` | Create event (needs event_name, event_type) |
 | GET | `/events/:id` | Get event details |
-| POST | `/events/:id/photos` | Upload photo (multipart `photo` field; optional `replaces_photo_id`) |
+| POST | `/events/:id/photos` | Upload a photo or video (multipart `photo` field; optional `replaces_photo_id`). Videos only when the server enables video file types; a video replaces only a video |
 | GET | `/events/:id/photos` | List photos with proofing marks (filters: `marked_only`, `mark_source`, `color_labels`, `my_color_labels`, `min_rating`, `my_min_rating`) |
 | GET | `/events/:id/share-link` | Get share URL |
 

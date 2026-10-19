@@ -196,6 +196,53 @@ function util.extensionOf(filename)
     return ext and ext:lower() or nil
 end
 
+--[[
+    The name a render is uploaded under. A photo keeps its catalog name: the
+    round-trip matches on it. A video takes the rendered file's extension,
+    because the export can transcode an .MOV to an H.264 .mp4 and PicPeak names
+    the stored file from what it is told. The stem is kept either way.
+]]
+function util.uploadNameFor(photo, renderedPath)
+    local fileName = photo:getFormattedMetadata("fileName")
+    if not photo:getRawMetadata("isVideo") then
+        return fileName
+    end
+    local stem, ext = util.stemOf(fileName), util.extensionOf(renderedPath)
+    if not stem or not ext then
+        return fileName
+    end
+    return stem .. "." .. ext
+end
+
+-- The video containers PicPeak accepts (its uploadSettings list). Lightroom's
+-- "Original" video setting passes the camera's file through unchanged, which
+-- can be .mts, .mpg or .3gp; the server would refuse those after a full upload.
+local UPLOADABLE_VIDEO_EXTENSIONS = { mp4 = true, m4v = true, mov = true, webm = true, avi = true }
+
+-- Why a rendered video cannot be uploaded, or nil when it can.
+function util.unsupportedVideoReason(photo, renderedPath)
+    if not photo:getRawMetadata("isVideo") then
+        return nil
+    end
+    local ext = util.extensionOf(renderedPath)
+    if ext and UPLOADABLE_VIDEO_EXTENSIONS[ext] then
+        return nil
+    end
+    return "PicPeak does not accept ." .. tostring(ext or "?") .. " videos;"
+        .. " choose H.264 in the export dialog's Video section"
+end
+
+-- A refused video most often means the server cannot take one yet; say what
+-- to change instead of leaving only the HTTP status.
+function util.uploadFailureReason(photo, errReason)
+    local reason = errReason or "Upload failed"
+    if photo:getRawMetadata("isVideo") then
+        reason = reason .. "; videos need a PicPeak version that accepts them over the API,"
+            .. " with the video file type enabled in PicPeak's upload settings"
+    end
+    return reason
+end
+
 function util.isSupportedPhotoExtension(filename)
     local ext = util.extensionOf(filename)
     if not ext then

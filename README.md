@@ -25,6 +25,7 @@ Upload galleries to a self-hosted [PicPeak](https://github.com/PicPeak/picpeak) 
 - [The round-trip](#-the-round-trip)
 - [Sending edits back](#-sending-edits-back)
 - [Multi-camera shoots](#-multi-camera-shoots)
+- [Videos](#-videos)
 - [Multiple servers](#-multiple-servers)
 - [Security](#-security)
 - [Troubleshooting](#-troubleshooting)
@@ -119,6 +120,12 @@ Matching reads the **longest** trailing run of digits, so `11234` and `21234` st
 
 If you use the optional *"Also match by trailing file number"* fallback, your delivery name has to keep the **whole** run — `Smith_Wedding_11234.jpg`, not `Smith_Wedding_1234.jpg`. Files that do share a number are skipped and reported, never guessed at.
 
+## 🎬 Videos
+
+Videos go through the same Exporter and Publish service as photos. The **Video** section of the export dialog decides what is sent: the original file, or a transcode such as H.264. A transcoded clip is uploaded under its catalog name with the new extension (`CLIP_0001.MOV` → `CLIP_0001.mp4`). PicPeak takes `mp4`, `m4v`, `mov`, `webm` and `avi`; an original in another container (`.mts`, `.mpg`, `.3gp`, ...) is listed as a failure before anything is uploaded, so choose H.264 for those.
+
+The server has to accept them: a PicPeak release that takes videos over the API, with the video file types (`mp4`, `mov`, `webm`, ...) enabled in its upload settings, and a video size limit large enough for the clip. Otherwise the upload fails and the failure list says so. Re-publishing treats a video like a photo; the server never lets a video replace a photo or the other way round.
+
 ## 🖧 Multiple servers
 
 Sign in to a second PicPeak and the overview grows a **Server** picker — a studio server and a client's, or production and a local instance. Each server keeps its own token in the keychain, so switching is just choosing it.
@@ -140,6 +147,7 @@ The token carries the `admin` scope, because minting and revoking tokens require
 | **"N local files share the number"** | Two RAWs have the same trailing digits — use the camera-prefix scheme, or match on full filenames. |
 | **Labels didn't change** | The default conflict mode never overwrites. Switch to *PicPeak wins* or *Highest priority wins*. |
 | **No colours at all** | Colour labels are probably disabled on that event. |
+| **Video upload fails** | The server does not take videos yet, the file type is not enabled in PicPeak's upload settings, or the clip is over the video size limit. |
 | **RAW upload fails** | The **server** needs `exiftool` to read RAW files (`apt-get install libimage-exiftool-perl`). Exporting JPEG avoids it entirely. |
 
 Enable logging in **Plug-in Manager → PicPeak → Logging**, reproduce, then use **Show log file**.

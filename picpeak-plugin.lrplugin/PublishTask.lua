@@ -93,7 +93,7 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
 
         if success then
             local photo = rendition.photo
-            local fileName = photo:getFormattedMetadata("fileName")
+            local fileName = util.uploadNameFor(photo, pathOrMessage)
 
             -- Detect re-publish: Lightroom passes an existing remote ID for photos
             -- that were previously published and have since been modified.
@@ -108,14 +108,20 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
             local existingId = rendition.publishedPhoto and rendition.publishedPhoto:getRemoteId()
             local replacesPhotoId = (existingId and existingId ~= "") and existingId or nil
 
-            local photoId, errReason = picpeak:uploadPhoto(
-                eventId, pathOrMessage, fileName, replacesPhotoId
-            )
+            local photoId, errReason
+            local unsupported = util.unsupportedVideoReason(photo, pathOrMessage)
+            if unsupported then
+                errReason = unsupported
+            else
+                photoId, errReason = picpeak:uploadPhoto(
+                    eventId, pathOrMessage, fileName, replacesPhotoId
+                )
+            end
             util.safeDeleteTempFile(pathOrMessage)
 
             if not photoId then
                 log:error("PublishTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
-                table.insert(failures, fileName .. " (" .. (errReason or "Upload failed") .. ")")
+                table.insert(failures, fileName .. " (" .. (unsupported or util.uploadFailureReason(photo, errReason)) .. ")")
             else
                 local photoIdStr = tostring(photoId)
                 MetadataTask.setPhotoId(photo, photoIdStr)

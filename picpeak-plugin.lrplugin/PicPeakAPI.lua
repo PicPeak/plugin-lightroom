@@ -312,6 +312,9 @@ local MIME_TYPES = {
     png = "image/png", tiff = "image/tiff", tif = "image/tiff",
     gif = "image/gif", webp = "image/webp", heic = "image/heic",
     heif = "image/heif", bmp = "image/bmp",
+    -- The video types PicPeak accepts.
+    mp4 = "video/mp4", m4v = "video/mp4", mov = "video/quicktime",
+    webm = "video/webm", avi = "video/x-msvideo",
 }
 
 local function mimeTypeForFile(path)
