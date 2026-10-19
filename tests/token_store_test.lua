@@ -33,11 +33,16 @@ local function setup(options)
     options = options or {}
     local keychain = {}
     local logged = {}
+    -- Counts LrTasks.pcall calls and records what prefs held at each write, so
+    -- a check can tell a bare pcall (which yields badly inside Lightroom tasks)
+    -- from the SDK's, and see the order of write and clear.
+    local trace = { pcalls = 0, prefsAtStore = {} }
 
     _G.prefs = { apiToken = options.legacy }
-    _G.LrTasks = { pcall = pcall }
+    _G.LrTasks = { pcall = function(...) trace.pcalls = trace.pcalls + 1; return pcall(...) end }
     _G.LrPasswords = {
         store = function(key, value)
+            trace.prefsAtStore[#trace.prefsAtStore + 1] = _G.prefs.apiToken
             if options.refuseStore then error("keychain refused the write") end
             keychain[key] = value
         end,
@@ -51,7 +56,7 @@ local function setup(options)
 
     _G.TokenStore = nil
     dofile(PLUGIN_DIR .. "TokenStore.lua")
-    return keychain, logged
+    return keychain, logged, trace
 end
 
 local URL = "https://gallery.example.com"
@@ -60,8 +65,10 @@ local OTHER = "https://other.example.com"
 -- Migration ------------------------------------------------------------------
 
 do
-    local keychain = setup({ legacy = "pp_live_old" })
+    local keychain, _, trace = setup({ legacy = "pp_live_old" })
     local token = TokenStore.get(URL)
+    check("migration writes while prefs still hold the token", trace.prefsAtStore[1] == "pp_live_old",
+        tostring(trace.prefsAtStore[1]))
     check("migration returns the legacy token", token == "pp_live_old", tostring(token))
     check("migration writes it to the keychain under the server key",
         keychain["picpeak:apiToken:" .. URL] == "pp_live_old")
@@ -74,8 +81,8 @@ end
 do
     local keychain = setup({ legacy = "pp_live_old" })
     -- Indexed by hand: ipairs would stop at the leading nil.
-    local noUrls = { nil, "", "   ", "///" }
-    for i = 1, 4 do
+    local noUrls = { nil, "", "   ", "///", 42 }
+    for i = 1, 5 do
         local token = TokenStore.get(noUrls[i])
         check("no-URL read still returns the prefs token (" .. tostring(noUrls[i]) .. ")", token == "pp_live_old")
     end
@@ -103,8 +110,26 @@ end
 
 do
     setup({ refuseStore = true })
-    _G.prefs.apiToken = ""
+    _G.prefs.apiToken = "pp_live_old"
     check("set reports a refused write", TokenStore.set(URL, "pp_live_new") == false)
+    check("a refused set keeps the prefs token it could not replace", _G.prefs.apiToken == "pp_live_old")
+end
+
+do
+    setup({ refuseStore = true })
+    _G.prefs.apiToken = "pp_live_old"
+    local ok = pcall(TokenStore.clear, URL)
+    check("clear survives a refusing keychain", ok)
+    check("clear removes the prefs copy even then", _G.prefs.apiToken == "")
+end
+
+-- A token in prefs wins over an older keychain entry: it is the one the user
+-- last signed in with on an install that predates the keychain.
+do
+    local keychain = setup({ legacy = "pp_live_old" })
+    keychain["picpeak:apiToken:" .. URL] = "pp_live_keychain"
+    check("the prefs token wins over an existing keychain entry", TokenStore.get(URL) == "pp_live_old")
+    check("and replaces it in the keychain", keychain["picpeak:apiToken:" .. URL] == "pp_live_old")
 end
 
 -- Per-server isolation and URL normalisation ----------------------------------
@@ -122,6 +147,8 @@ do
     TokenStore.set(URL .. "/", "pp_live_a")
     check("a trailing slash names the same entry", TokenStore.get(URL) == "pp_live_a")
     check("surrounding space names the same entry", TokenStore.get("  " .. URL .. "//  ") == "pp_live_a")
+    TokenStore.set("  " .. URL .. "  ", "pp_live_b")
+    check("a padded write replaces the same entry", TokenStore.get(URL) == "pp_live_b")
     local entries = 0
     for _ in pairs(keychain) do entries = entries + 1 end
     check("only one keychain entry exists for that server", entries == 1, tostring(entries))
@@ -144,10 +171,27 @@ do
     TokenStore.set(URL, "pp_live_a")
     TokenStore.set(OTHER, "pp_live_b")
     _G.prefs.apiToken = "pp_live_stale"
-    TokenStore.clear(URL)
-    check("clear empties that server's token", TokenStore.get(URL) == "")
+    TokenStore.clear(URL .. "/")
+    check("clear empties that server's token, under any spelling of its URL", TokenStore.get(URL) == "")
     check("clear leaves other servers alone", TokenStore.get(OTHER) == "pp_live_b")
     check("clear removes the prefs copy", _G.prefs.apiToken == "")
+end
+
+-- Every keychain call goes through the SDK's pcall ----------------------------
+
+do
+    local _, _, trace = setup({ legacy = "pp_live_old" })
+    TokenStore.get(URL)   -- migration write
+    TokenStore.get(URL)   -- keychain read
+    TokenStore.set(URL, "pp_live_new")
+    TokenStore.clear(URL)
+    check("each keychain call is wrapped in LrTasks.pcall", trace.pcalls == 4, tostring(trace.pcalls))
+end
+
+do
+    local keychain = setup()
+    TokenStore.set(URL, nil)
+    check("a nil token is stored as empty", keychain["picpeak:apiToken:" .. URL] == "")
 end
 
 print(string.format("%d passed, %d failed", passes, failures))
