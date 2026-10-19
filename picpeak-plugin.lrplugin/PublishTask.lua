@@ -108,14 +108,20 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
             local existingId = rendition.publishedPhoto and rendition.publishedPhoto:getRemoteId()
             local replacesPhotoId = (existingId and existingId ~= "") and existingId or nil
 
-            local photoId, errReason = picpeak:uploadPhoto(
-                eventId, pathOrMessage, fileName, replacesPhotoId
-            )
+            local photoId, errReason
+            local unsupported = util.unsupportedVideoReason(photo, pathOrMessage)
+            if unsupported then
+                errReason = unsupported
+            else
+                photoId, errReason = picpeak:uploadPhoto(
+                    eventId, pathOrMessage, fileName, replacesPhotoId
+                )
+            end
             util.safeDeleteTempFile(pathOrMessage)
 
             if not photoId then
                 log:error("PublishTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
-                table.insert(failures, fileName .. " (" .. util.uploadFailureReason(photo, errReason) .. ")")
+                table.insert(failures, fileName .. " (" .. (unsupported or util.uploadFailureReason(photo, errReason)) .. ")")
             else
                 local photoIdStr = tostring(photoId)
                 MetadataTask.setPhotoId(photo, photoIdStr)

@@ -54,5 +54,16 @@ check("a refused video says what to enable",
 check("a failure without a reason still reads",
     util.uploadFailureReason(photo, nil) == "Upload failed")
 
+check("a photo is never held to the video formats",
+    util.unsupportedVideoReason(photo, "/tmp/render/IMG_1234.jpg") == nil)
+check("an H.264 render is uploadable", util.unsupportedVideoReason(mov, "/tmp/render/CLIP_0001.mp4") == nil)
+check("an original .MOV is uploadable", util.unsupportedVideoReason(mov, "/tmp/render/CLIP_0001.MOV") == nil)
+local mts = fakePhoto("00012.MTS", true)
+local reason = util.unsupportedVideoReason(mts, "/tmp/render/00012.MTS")
+check("an original .MTS is refused before the upload, naming the fix",
+    reason ~= nil and reason:find(".mts", 1, true) ~= nil and reason:find("H.264", 1, true) ~= nil, reason)
+check("a video render without an extension is refused",
+    util.unsupportedVideoReason(mov, "/tmp/render/CLIP_0001") ~= nil)
+
 print(string.format("%d passed, %d failed", passes, failures))
 if failures > 0 then os.exit(1) end

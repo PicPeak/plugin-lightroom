@@ -214,6 +214,24 @@ function util.uploadNameFor(photo, renderedPath)
     return stem .. "." .. ext
 end
 
+-- The video containers PicPeak accepts (its uploadSettings list). Lightroom's
+-- "Original" video setting passes the camera's file through unchanged, which
+-- can be .mts, .mpg or .3gp; the server would refuse those after a full upload.
+local UPLOADABLE_VIDEO_EXTENSIONS = { mp4 = true, m4v = true, mov = true, webm = true, avi = true }
+
+-- Why a rendered video cannot be uploaded, or nil when it can.
+function util.unsupportedVideoReason(photo, renderedPath)
+    if not photo:getRawMetadata("isVideo") then
+        return nil
+    end
+    local ext = util.extensionOf(renderedPath)
+    if ext and UPLOADABLE_VIDEO_EXTENSIONS[ext] then
+        return nil
+    end
+    return "PicPeak does not accept ." .. tostring(ext or "?") .. " videos;"
+        .. " choose H.264 in the export dialog's Video section"
+end
+
 -- A refused video most often means the server cannot take one yet; say what
 -- to change instead of leaving only the HTTP status.
 function util.uploadFailureReason(photo, errReason)

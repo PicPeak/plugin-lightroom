@@ -245,14 +245,20 @@ function ExportTask.processRenderedPhotos(functionContext, exportContext)
                 replacesPhotoId = MetadataTask.getPhotoId(photo)
             end
 
-            local photoId, errReason = picpeak:uploadPhoto(
-                eventId, pathOrMessage, fileName, replacesPhotoId
-            )
+            local photoId, errReason
+            local unsupported = util.unsupportedVideoReason(photo, pathOrMessage)
+            if unsupported then
+                errReason = unsupported
+            else
+                photoId, errReason = picpeak:uploadPhoto(
+                    eventId, pathOrMessage, fileName, replacesPhotoId
+                )
+            end
             util.safeDeleteTempFile(pathOrMessage)
 
             if not photoId then
                 log:error("ExportTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
-                table.insert(failures, fileName .. " (" .. util.uploadFailureReason(photo, errReason) .. ")")
+                table.insert(failures, fileName .. " (" .. (unsupported or util.uploadFailureReason(photo, errReason)) .. ")")
             else
                 atLeastOneSuccess = true
                 MetadataTask.setPhotoId(photo, tostring(photoId))

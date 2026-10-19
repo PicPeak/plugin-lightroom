@@ -122,9 +122,9 @@ If you use the optional *"Also match by trailing file number"* fallback, your de
 
 ## 🎬 Videos
 
-Videos go through the same Exporter and Publish service as photos. The **Video** section of the export dialog decides what is sent: the original file, or a transcode such as H.264. A transcoded clip is uploaded under its catalog name with the new extension (`CLIP_0001.MOV` → `CLIP_0001.mp4`).
+Videos go through the same Exporter and Publish service as photos. The **Video** section of the export dialog decides what is sent: the original file, or a transcode such as H.264. A transcoded clip is uploaded under its catalog name with the new extension (`CLIP_0001.MOV` → `CLIP_0001.mp4`). PicPeak takes `mp4`, `m4v`, `mov`, `webm` and `avi`; an original in another container (`.mts`, `.mpg`, `.3gp`, ...) is listed as a failure before anything is uploaded, so choose H.264 for those.
 
-The server has to accept them: a PicPeak release that takes videos over the API, with the video file types (`mp4`, `mov`, `webm`, ...) enabled in its upload settings, and a video size limit large enough for the clip. Otherwise the upload fails and the failure list says so. Re-publishing replaces a video with its new render like a photo; a video never replaces a photo or the other way round.
+The server has to accept them: a PicPeak release that takes videos over the API, with the video file types (`mp4`, `mov`, `webm`, ...) enabled in its upload settings, and a video size limit large enough for the clip. Otherwise the upload fails and the failure list says so. Re-publishing treats a video like a photo; the server never lets a video replace a photo or the other way round.
 
 ## 🖧 Multiple servers
 
