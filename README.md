@@ -29,6 +29,7 @@ Upload galleries to a self-hosted [PicPeak](https://github.com/PicPeak/picpeak) 
 - [Multiple servers](#-multiple-servers)
 - [Security](#-security)
 - [Troubleshooting](#-troubleshooting)
+- [Tests](#-tests)
 - [Credit](#-credit)
 
 ## 🚀 Install
@@ -151,6 +152,16 @@ The token carries the `admin` scope, because minting and revoking tokens require
 | **RAW upload fails** | The **server** needs `exiftool` to read RAW files (`apt-get install libimage-exiftool-perl`). Exporting JPEG avoids it entirely. |
 
 Enable logging in **Plug-in Manager → PicPeak → Logging**, reproduce, then use **Show log file**.
+
+## 🧪 Tests
+
+`tests/` holds plain Lua checks that stub the Lightroom SDK, so they run outside Lightroom with any Lua 5.1+ interpreter. Run them from the repository root:
+
+```sh
+for f in tests/*_test.lua; do lua "$f" || exit 1; done
+```
+
+Each file prints `N passed, M failed` and exits non-zero on a failure. `token_store_test.lua` guards the one-way move of the API token from plaintext prefs into the keychain: PicPeak shows a token once, so a wrong migration would sign you out for good. No Lua installed? `npx -p fengari-node-cli fengari tests/token_store_test.lua` runs the same file.
 
 ## 🙏 Credit
 
