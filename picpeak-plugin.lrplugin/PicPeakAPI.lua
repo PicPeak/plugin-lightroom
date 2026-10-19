@@ -358,7 +358,15 @@ function PicPeakAPI:uploadPhoto(eventId, filePath, fileName, replacesPhotoId)
         })
     end
 
-    local parsedResponse, errReason = self:doMultiPartPostRequest(apiPath, mimeChunks)
+    local parsedResponse, errReason, status = self:doMultiPartPostRequest(apiPath, mimeChunks)
+    -- The photo it would replace is gone: deleted in PicPeak, or the gallery
+    -- was recreated after the old one disappeared. Replacing can never succeed
+    -- then, so upload it as a new photo instead of failing on every re-publish.
+    if not parsedResponse and status == 404 and replacesPhotoId ~= nil and replacesPhotoId ~= ""
+        and string.find(errReason or "", "No photo ", 1, true) then
+        log:warn("uploadPhoto: photo " .. tostring(replacesPhotoId) .. " to replace is gone, uploading " .. name .. " as new")
+        return self:uploadPhoto(eventId, filePath, fileName, nil)
+    end
     if parsedResponse then
         -- A replace answers with { replaced = true, photo = {...} }; a fresh
         -- upload answers with the photo fields at the top level.
@@ -771,5 +779,5 @@ function PicPeakAPI:doMultiPartPostRequest(apiPath, mimeChunks)
         return safeDecodeJson(response, "multipart POST")
     end
     local errReason = handleRequestFailure("multipart POST", apiPath, headers.status, headers, response)
-    return nil, errReason
+    return nil, errReason, headers.status
 end

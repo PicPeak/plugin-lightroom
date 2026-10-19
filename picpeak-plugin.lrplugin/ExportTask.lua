@@ -270,6 +270,7 @@ function ExportTask.processRenderedPhotos(functionContext, exportContext)
         else
             log:warn("ExportTask: render failed for photo: " .. tostring(pathOrMessage))
             util.safeDeleteTempFile(pathOrMessage)
+            util.recordRenderFailure(failures, rendition, pathOrMessage)
         end
 
         done = done + 1

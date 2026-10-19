@@ -136,6 +136,17 @@ function util.buildSimpleUploadProgressTitle(nPhotos, verb, suffix)
     return verb .. " " .. countStr .. " to " .. (suffix or "PicPeak")
 end
 
+-- A render that failed belongs in the same summary as a failed upload: the
+-- photo did not reach PicPeak either way. A rendition skipped on purpose
+-- (wasSkipped) is not a failure.
+function util.recordRenderFailure(failures, rendition, message)
+    if rendition.wasSkipped then
+        return
+    end
+    local fileName = rendition.photo and rendition.photo:getFormattedMetadata("fileName") or "?"
+    table.insert(failures, fileName .. " (render failed: " .. tostring(message or "unknown error") .. ")")
+end
+
 function util.reportUploadFailures(failures)
     if failures and #failures > 0 then
         local message = (#failures == 1) and "1 file failed to upload correctly."

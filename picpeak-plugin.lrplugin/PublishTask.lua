@@ -105,15 +105,20 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
             -- "republish" always looked like it did. The photo keeps its id,
             -- its feedback and its position, so the client's proofing marks
             -- survive the update.
-            local existingId = rendition.publishedPhoto and rendition.publishedPhoto:getRemoteId()
-            local replacesPhotoId = (existingId and existingId ~= "") and existingId or nil
+            --
+            -- publishedPhotoId is the SDK's field for the id recorded by
+            -- recordPublishedPhotoId on the last publish. This used to read
+            -- rendition.publishedPhoto, which LrExportRendition does not have,
+            -- so every re-publish uploaded a duplicate.
+            local existingId = rendition.publishedPhotoId
+            local replacesPhotoId = (existingId and existingId ~= "") and tostring(existingId) or nil
 
-            local photoId, errReason
+            local photoId, errReason, wasReplaced
             local unsupported = util.unsupportedVideoReason(photo, pathOrMessage)
             if unsupported then
                 errReason = unsupported
             else
-                photoId, errReason = picpeak:uploadPhoto(
+                photoId, errReason, wasReplaced = picpeak:uploadPhoto(
                     eventId, pathOrMessage, fileName, replacesPhotoId
                 )
             end
@@ -121,21 +126,26 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
 
             if not photoId then
                 log:error("PublishTask: upload failed for " .. fileName .. ": " .. tostring(errReason))
-                table.insert(failures, fileName .. " (" .. (unsupported or util.uploadFailureReason(photo, errReason)) .. ")")
+                local reason = unsupported or util.uploadFailureReason(photo, errReason)
+                table.insert(failures, fileName .. " (" .. reason .. ")")
+                -- Without this Lightroom files the photo under Published,
+                -- and it would not be offered again on the next publish.
+                rendition:uploadFailed(reason)
             else
                 local photoIdStr = tostring(photoId)
                 MetadataTask.setPhotoId(photo, photoIdStr)
                 MetadataTask.setEventId(photo, eventId)
                 rendition:recordPublishedPhotoId(photoIdStr)
                 if shareUrl then rendition:recordPublishedPhotoUrl(shareUrl) end
-                if replacesPhotoId then
+                if wasReplaced then
                     replaced = replaced + 1
                 end
                 log:info("PublishTask: " .. fileName .. " -> photoId=" .. photoIdStr
-                    .. (replacesPhotoId and " (replaced)" or ""))
+                    .. (wasReplaced and " (replaced)" or ""))
             end
         else
             util.safeDeleteTempFile(pathOrMessage)
+            util.recordRenderFailure(failures, rendition, pathOrMessage)
         end
 
         done = done + 1
