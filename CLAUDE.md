@@ -36,7 +36,7 @@ Base path: `/api/v1`. Token must have `write` + `admin` scopes.
 | GET | `/events/:id/photos` | List photos with proofing marks (filters: `marked_only`, `mark_source`, `color_labels`, `my_color_labels`, `min_rating`, `my_min_rating`) |
 | GET | `/events/:id/share-link` | Get share URL |
 
-**Limitations of v1 API**: No delete photo, no delete event, no rename event endpoints. The publish plugin warns users when these operations are attempted. Replacing a photo IS supported (`replaces_photo_id`), which is why re-publish updates in place rather than skipping.
+**Limitations of v1 API**: No delete photo, no delete event, no rename event endpoints. The publish plugin warns users when these operations are attempted. Replacing a photo IS supported (`replaces_photo_id`), which is why re-publish updates in place rather than skipping. The id comes from `rendition.publishedPhotoId`; when the server answers 404 "No photo N" (deleted in PicPeak, or the gallery was recreated) `uploadPhoto` retries as a new upload.
 
 ### Event types
 

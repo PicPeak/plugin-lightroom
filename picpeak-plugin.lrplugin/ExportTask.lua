@@ -227,7 +227,11 @@ function ExportTask.processRenderedPhotos(functionContext, exportContext)
             break
         end
 
-        if success then
+        -- waitForRender answers true for a skipped rendition but renders no
+        -- file, so check before treating it as a render to upload.
+        if rendition.wasSkipped then
+            log:info("ExportTask: rendition skipped")
+        elseif success then
             local photo = rendition.photo
             local fileName = util.uploadNameFor(photo, pathOrMessage)
 
@@ -270,6 +274,7 @@ function ExportTask.processRenderedPhotos(functionContext, exportContext)
         else
             log:warn("ExportTask: render failed for photo: " .. tostring(pathOrMessage))
             util.safeDeleteTempFile(pathOrMessage)
+            util.recordRenderFailure(failures, rendition, pathOrMessage)
         end
 
         done = done + 1
